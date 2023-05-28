@@ -4,31 +4,36 @@ from datetime import datetime
 
 class Parser:
     def __init__(self, file):
-        self.file = file
+        self.file, self.file_obj = file, None
+        self.counts = defaultdict(lambda: defaultdict(int))
 
     def __iter__(self):
-        pass
+        self.file_obj = open(self.file, "r")
+        return self
 
     def __next__(self):
-        pass
+        line = self.file_obj.readline()
+        if not line:
+            self.file_obj.close()
+            raise StopIteration
+
+        timestamp = line.split("]")[0].strip("[")
+        dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f")
+        day_key = dt.strftime("%Y-%m-%d")
+        event_type = "NOK" if "NOK" in line else "OK"
+
+        self.counts[day_key][event_type] += 1
+
+        return day_key, event_type
 
     def log_parser(self):
-        nok_counts, ok_counts = defaultdict(int), defaultdict(int)
-        with open(self.file, "r") as file:
-            for line in file:
-                timestamp = line.split("]")[0].strip("[")
-                dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S.%f")
-                day_key = dt.strftime("%Y-%m-%d")
-                if "NOK" in line:
-                    nok_counts[day_key] += 1
-                else:
-                    ok_counts[day_key] += 1
+        for _ in self:
+            pass
 
         with open("log_counts.txt", "w") as file:
-            for key, count in nok_counts.items():
-                file.write(f"NOK : [{key}] {count}\n")
-            for key, count in ok_counts.items():
-                file.write(f"OK : [{key}] {count}\n")
+            for day_key, events in self.counts.items():
+                file.write(f"NOK : [{day_key}] {events['NOK']}\n")
+                file.write(f"OK : [{day_key}] {events['OK']}\n")
 
 
 if __name__ == "__main__":
